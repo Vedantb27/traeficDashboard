@@ -1,9 +1,10 @@
+version: '3.7'
+
 services:
   traefik:
     image: traefik:3.0
     ports:
       - 80:80 # HTTP port
-      - 443:443 # HTTPS port
     restart: always
     labels:
       # Traefik configuration
@@ -13,27 +14,16 @@ services:
 
       # HTTP router configuration
       - traefik.http.routers.traefik-dashboard-http.entrypoints=http
-      - traefik.http.routers.traefik-dashboard-http.rule=Host(`43.204.240.197`) # Replaced ${DOMAIN} with the public IP
+      - traefik.http.routers.traefik-dashboard-http.rule=PathPrefix(`/dashboard`)
 
-      # HTTPS router configuration (Commented out since SSL is removed)
-      # - traefik.http.routers.traefik-dashboard-https.entrypoints=https
-      # - traefik.http.routers.traefik-dashboard-https.rule=Host(`43.204.240.197`)
-      # - traefik.http.routers.traefik-dashboard-https.tls=true
-      # - traefik.http.routers.traefik-dashboard-https.tls.certresolver=le
-      # - traefik.http.routers.traefik-dashboard-https.service=api@internal
-
-      # HTTPS redirect middleware (Commented out since HTTPS is removed)
-      # - traefik.http.middlewares.https-redirect.redirectscheme.scheme=https
-      # - traefik.http.middlewares.https-redirect.redirectscheme.permanent=true
-      # - traefik.http.routers.traefik-dashboard-http.middlewares=https-redirect
-
-      # HTTP Basic Auth middleware (Optional - if you want to keep auth, update the variables in `.env`)
-      # - traefik.http.middlewares.admin-auth.basicauth.users=${USERNAME?Variable not set}:${HASHED_PASSWORD?Variable not set}
+      # HTTP Basic Auth middleware (Optional for local development)
+      # Uncomment these lines if you want to secure the dashboard with basic auth.
+      # - traefik.http.middlewares.admin-auth.basicauth.users=${USERNAME}:${HASHED_PASSWORD}
       # - traefik.http.routers.traefik-dashboard-http.middlewares=admin-auth
 
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro # Docker socket for reading service labels
-      - traefik-public-certificates:/certificates # Certificate storage (can be kept for future use)
+      - traefik-public-certificates:/certificates # Keep this if required in the future
     command:
       # Docker provider configuration
       - --providers.docker
@@ -41,23 +31,18 @@ services:
 
       # Entrypoints configuration
       - --entrypoints.http.address=:80
-      # - --entrypoints.https.address=:443 # Commented out as HTTPS is removed
-
-      # Let's Encrypt configuration (Commented out since SSL is removed)
-      # - --certificatesresolvers.le.acme.email=${ACME_EMAIL?Variable not set}
-      # - --certificatesresolvers.le.acme.storage=/certificates/acme.json
-      # - --certificatesresolvers.le.acme.tlschallenge=true
 
       # Logging and API configuration
       - --accesslog
       - --log
-      - --api
+      - --api.dashboard=true
+      - --api.insecure=true # Enable insecure mode for easy access during local development
     networks:
-      - traefik-public # Public network for Traefik and other services
+      - traefik-public
 
 volumes:
   traefik-public-certificates: # Persistent volume for certificates
 
 networks:
   traefik-public:
-    external: true # Use pre-existing traefik-public network
+    external: false # Create a new local network for development
